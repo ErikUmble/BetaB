@@ -1,7 +1,16 @@
+**Background
 
+In MIT's 6.004 Computation Structures, each student builds a RISC CPU called Beta, following the ISA specified in the class. As a final project, they must optimize their CPU in both speed and size for a high score on the benchmark test. Full credit on the assignment is achieved with a score of 30. I found the optimization process quite fun, and continued to a score just over 60. I named my optimized CPU BetaB, for Better Beta. 
 
-Benchmark = e^(10/(size in square meters)*time to run in seconds)
+Benchmark score = e^(10/(size in square meters)*time to run in seconds)
 Base implementation (from lab6): circuit size = 1676 gates (319770 square microns); time = 15.08 us Benchmark = 7.95
+Optimized BetaB: 3201 gates (322903 square microns); time 7.56 us Benchmark 60.126
+
+**How to run
+
+Download all the .jsim and .uasm files to a directory. Use `java -jar jsim.jar BetaB.jsim` and click the 'gate level simulation' button in the new window that pops up. Click the green checkmark to verify the results.  
+
+**My optimization procedure
 
 I merged the read/write ports of main memory that use address ma
 Size Improvement 1: circuit size = 1676 gates (2883234 square microns); time = 15.08 us Benchmark = 9.98
