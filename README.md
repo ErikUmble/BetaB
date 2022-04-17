@@ -1,6 +1,8 @@
 **Background
 
 In MIT's 6.004 Computation Structures, each student builds a RISC CPU called Beta, following the ISA specified in the class. As a final project, they must optimize their CPU in both speed and size for a high score on the benchmark test. Full credit on the assignment is achieved with a score of 30. I found the optimization process quite fun, and continued to a score just over 60. I named my optimized CPU BetaB, for Better Beta. 
+Course website: 
+https://ocw.mit.edu/courses/6-004-computation-structures-spring-2009/resources/mit6_004s09_lab_project/
 
 Benchmark score = e^(10/(size in square meters)*time to run in seconds)
 Base implementation (from lab6): circuit size = 1676 gates (319770 square microns); time = 15.08 us Benchmark = 7.95
