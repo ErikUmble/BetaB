@@ -1,0 +1,70 @@
+
+.subckt alu ALUFN[5:0] A[31:0] B[31:0] alu[31:0] z v n
+    // compute the addition/subtraction
+    Xxor_B_ALUFN0 B[31:0] ALUFN[0]#32 XB[31:0] xor2  // flips the bits of B if it should be negated
+    Xalu_CLA32 A[31:0] XB[31:0] ALUFN[0] ADD[31:0] _co_ CLA32
+    // set n
+    .connect n ADD[31] // negative if ADD[31] is true
+
+    // compute v
+    Xv_inv A[31] XB[31] ADD[31] notA[31] notXB[31] notADD[31] inverter
+    Xv_nor_1 notA[31] notXB[31] nor_nA_nXB_31 nor2
+    Xv_nor_2 A[31] XB[31] nor_A_XB_31 nor2
+    Xv_and_1 nor_nA_nXB_31 notADD[31] v_first and2
+    Xv_and_2 nor_A_XB_31 ADD[31] v_second and2
+    Xv_or v_first v_second v or2
+    // compute z
+    Xz_zero32 ADD[31:0] z zero32
+
+    // compute logical operations
+    Xalu_boole32 ALUFN[3:0] A[31:0] B[31:0] BOOLE[31:0] boole32
+    Xalu_shift32 ALUFN[1:0] A[31:0] B[4:0] SHIFT[31:0] shift32
+    Xalu_compare32 ALUFN[2:1] z v n CMP[31:0] compare32
+
+    // select the chosen computation
+    Xalu_mux4 ALUFN[4]#32 ALUFN[5]#32 ADD[31:0] BOOLE[31:0] SHIFT[31:0] CMP[31:0] alu[31:0] mux4
+.ends
+
+
+.subckt compare32 ALUFN[2:1] z v n cmp[31:0]
+    Xcmp_gnd cmp[31:1] constant0 // zero the higher order 31 bits
+    Xcmp_nand2_1 ALUFN[1] z cmp_first nand2
+    Xcmp_xor2 v n xor_n_v xor2
+    Xcmp_nand2_2 ALUFN[2] xor_n_v cmp_second nand2
+    Xcmp_nand2_3 cmp_first cmp_second cmp[0] nand2
+.ends
+
+.subckt boole32 ALUFN[3:0] A[31:0] B[31:0] boole[31:0]
+    // set the mux control bits
+    Xbool_and_1 ALUFN[3] ALUFN[1] s[1] and2
+    .connect ALUFN[2] s[0]
+
+    // compute the 3 logical operations between A and B
+    Xbool_and_2 A[31:0] B[31:0] AND[31:0] and2
+    Xbool_xor A[31:0] B[31:0] XOR[31:0] xor2
+    Xbool_or A[31:0] B[31:0] OR[31:0] or2
+
+    // set up the muxes
+    Xbool_mux4 s[0]#32 s[1]#32 AND[31:0] XOR[31:0] A[31:0] OR[31:0] boole[31:0] mux4
+.ends
+
+.subckt shift32 ALUFN[1:0] A[31:0] B[4:0] shift[31:0]
+    // shift left
+    Xshiftl_mux2_4 B[4]#32 A[31:0] A[15:0] 0#16 WL[31:0] mux2
+    Xshiftl_mux2_3 B[3]#32 WL[31:0] WL[23:0] 0#8 XL[31:0] mux2
+    Xshiftl_mux2_2 B[2]#32 XL[31:0] XL[27:0] 0#4 YL[31:0] mux2
+    Xshiftl_mux2_1 B[1]#32 YL[31:0] YL[29:0] 0#2 ZL[31:0] mux2
+    Xshiftl_mux2_0 B[0]#32 ZL[31:0] ZL[30:0] 0#1 SL[31:0] mux2
+
+    //shift right
+    Xshiftr_and2 ALUFN[1] A[31] sign and2
+    Xshiftr_mux2_4 B[4]#32 A[31:0] sign#16 A[31:16] WR[31:0] mux2
+    Xshiftr_mux2_3 B[3]#32 WR[31:0] sign#8 WR[31:8] XR[31:0] mux2
+    Xshiftr_mux2_2 B[2]#32 XR[31:0] sign#4 XR[31:4] YR[31:0] mux2
+    Xshiftr_mux2_1 B[1]#32 YR[31:0] sign#2 YR[31:2] ZR[31:0] mux2
+    Xshiftr_mux2_0 B[0]#32 ZR[31:0] sign#1 ZR[31:1] SR[31:0] mux2
+
+
+    // select between SR and SL
+    Xshift_mux2 ALUFN[0]#32 SL[31:0] SR[31:0] shift[31:0] mux2
+.ends

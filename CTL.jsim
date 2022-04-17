@@ -1,0 +1,324 @@
+*
+* computes signals used to insert instructions and flush pipeline due to exceptions
+*
+.subckt ctl_EXCEPT reset branch_taken stall is_ILLOP_RF except_IF except_RF except_ALU except_MEM except_WB
++ IRSrc_IF[1:0] IRSrc_RF[1:0] IRSrc_ALU[1:0] IRSrc_MEM[1:0]
+
+    X_nor2_0 except_WB reset reset_nor_exWB nor2
+    X_nor2_1 except_ALU except_MEM exALU_nor_exMEM nor2
+    X_inv_0 except_MEM n_exMEM inverter
+    X_inv_1 stall n_stall inverter
+    X_nor2_2 branch_taken except_RF branch_nor_exRF nor2
+    XIRSrcIF_nand3_0 branch_nor_exRF exALU_nor_exMEM reset_nor_exWB IRSrc_IF[0] nand3
+    XIRSrcRF_nand3_1 exALU_nor_exMEM n_stall reset_nor_exWB IRSrc_RF[0] nand3
+    XIRSrcALU_nand2 n_exMEM reset_nor_exWB IRSrc_ALU[0] nand2
+    XIRSrcMEM_inv_3 reset_nor_exWB IRSrc_MEM[0] inverter
+
+    // IRSrc becomes 0b10 or 0b11 if exception in the current stage
+    .connect IRSrc_IF[1] except_IF
+    .connect IRSrc_RF[1] except_RF
+    .connect IRSrc_ALU[1] except_ALU
+    .connect IRSrc_MEM[1] except_MEM
+.ends
+
+* ctl_HAZARD
+** computes data hazard stall and bypass signals
+.subckt ctl_HAZARD reset ra_RF[4:0] rb_RF[4:0] rc_RF[4:0] rc_ALU[4:0] rc_MEM[4:0] rc_WB[4:0] _wdsel_ALU[1] _wdsel_MEM[1] ra2sel
++ stall n_stall bp1sel[1:0] bp2sel[1:0]
+
+    Xrename_ra1 ra_RF[4:0] ra1_RF[4:0] knex
+    Xra31_allones5 ra1_RF[4:0] ra1_31 allones5 // ra1_31 is true if ra1 (first read port) address is r31 (11111)
+    Xrb31_allones5 ra2_RF[4:0] ra2_31 allones5 // ra2_31 is true if the second register read port address is r31
+    Xr2addr_mux2 ra2sel#5 rb_RF[4:0] rc_RF[4:0] ra2_RF[4:0] mux2 // determine the address for second register read port
+    Xbypass_collision_1_alu ra1_RF[4:0] rc_ALU[4:0] collision_ra1_alu match5
+    Xbypass_collision_2_alu ra2_RF[4:0] rc_ALU[4:0] collision_ra2_alu match5
+    Xbypass_collision_1_mem ra1_RF[4:0] rc_MEM[4:0] collision_ra1_mem match5
+    Xbypass_collision_2_mem ra2_RF[4:0] rc_MEM[4:0] collision_ra2_mem match5
+    Xbypass_collision_1_wb ra1_RF[4:0] rc_WB[4:0] collision_ra1_wb match5
+    Xbypass_collision_2_wb ra2_RF[4:0] rc_WB[4:0] collision_ra2_wb match5
+
+    // calculate bp1sel[1:0]
+    Xn_ra1_31_inv ra1_31 n_ra1_31 inverter_4 // buffered inverter
+    Xbp1sel_nand2_0 n_ra1_31 collision_ra1_alu n_dhaz_1_alu nand2
+    Xbp1sel_nand2_1 n_ra1_31 collision_ra1_mem n_dhaz_1_mem nand2
+    Xbp1sel_nand2_3 n_dhaz_1_alu n_dhaz_1_mem bp1sel[1] nand2
+    Xbp1sel_nor2 collision_ra1_mem ra1_31 n_ignore_wb_collision_1 nor2
+    Xbp1sel_nand2_4 n_ignore_wb_collision_1 collision_ra1_wb n_dhaz_1_wb nand2
+    Xbp1sel_nand2_5 n_dhaz_1_wb n_dhaz_1_alu bp1sel[0] nand2
+
+    // calculate bp2sel[1:0]
+    Xn_ra2_31_inv ra2_31 n_ra2_31 inverter_4 // buffered inverter
+    Xbp2sel_nand2_0 n_ra2_31 collision_ra2_alu n_dhaz_2_alu nand2
+    Xbp2sel_nand2_1 n_ra2_31 collision_ra2_mem n_dhaz_2_mem nand2
+    Xbp2sel_nand2_3 n_dhaz_2_alu n_dhaz_2_mem bp2sel[1] nand2
+    Xbp2sel_nor2 collision_ra2_mem ra2_31 n_ignore_wb_collision_2 nor2
+    Xbp2sel_nand2_4 n_ignore_wb_collision_2 collision_ra2_wb n_dhaz_2_wb nand2
+    Xbp2sel_nand2_5 n_dhaz_2_wb n_dhaz_2_alu bp2sel[0] nand2
+
+    //calculate stall // todo:(can replace positive gates by inverting followed by inverter for speed gain if on crit path)
+    Xhazard_alu_inv_0 collision_ra1_alu n_collision_ra1_alu inverter
+    Xhazard_alu_nor2_0 ra1_31 n_collision_ra1_alu hazard_ra1_alu nor2
+    Xhazard_alu_inv_1 collision_ra2_alu n_collision_ra2_alu inverter
+    Xhazard_alu_nor2_1 ra2_31 n_collision_ra2_alu hazard_ra2_alu nor2
+    Xhazard_mem_inv_0 collision_ra1_mem n_collision_ra1_mem inverter
+    Xhazard_mem_nor2_0 ra1_31 n_collision_ra1_mem hazard_ra1_mem nor2
+    Xhazard_mem_inv_1 collision_ra2_mem n_collision_ra2_mem inverter
+    Xhazard_mem_nor2_1 ra2_31 n_collision_ra2_mem hazard_ra2_mem nor2
+    Xstall_or2_0 hazard_ra1_alu hazard_ra2_alu c_alu or2
+    Xstall_nand2_0 c_alu _wdsel_alu[1] n_LDc_alu nand2 // check if collision with LD result in alu
+    Xstall_or2_1 hazard_ra1_mem hazard_ra2_mem c_mem or2
+    Xstall_nand2_1 c_mem _wdsel_mem[1] n_LDc_mem nand2 // check if collision with LD result in mem
+    Xstall_nand2 n_LDc_mem n_LDc_alu _stall nand2
+    Xreset_inv reset n_reset inverter
+    Xstall_nand2_ n_reset _stall n_stall nand2
+    Xstall_inv n_stall stall inverter
+
+.ends
+
+
+* IF-stage control logic
+.subckt ctl_IF except_IF
+    // todo: raise exception if invalid instruction address
+    Xtmp except_IF constant0
+.ends
+
+
+* RF-stage control logic
+.subckt ctl_RF reset id_RF[31:26] id_RF[15:0] ia_RF[31] Z IRQ except_IF except_ALU except_MEM except_WB
+    + ra2sel asel bsel sxtc[31:0] pcsel[2:0] branch_taken is_ILLOP n_is_ILLOP except_RF
+
+    Xctl_RF_knex id_RF[31:26] op[5:0] knex // convenient renaming
+
+    // compute ASEL, (based on match with LDR instruction)
+    X_opLDR_nand2 op[4] op[3] nandop43 nand2
+    X_opLDR_nand3 op[2] op[1] op[0] nandop210 nand3
+    X_asel_nor3 op[5] nandop43 nandop210 asel nor3
+
+    // compute BSEL (based on OP instruction)
+    X_n_op4 op[4] n_op4 inverter
+    X_bsel_nand2 op[5] n_op4 bsel nand2
+
+    // compute ra2sel (0 if opcode[5:4] == 10)
+    X_ra2sel_nand2 n_op4 op[5] ra2sel nand2
+
+    X_sxtc_knex_0 id_RF[15]#16 sxtc[31:16] knex
+    X_sxtc_knex_1 id_RF[15:0] sxtc[15:0] knex
+
+
+    XnIRQ IRQ notIRQ inverter
+    Xctl_intrp_nor2_1 notIRQ ia_RF[31] interrupt nor2
+    Xctl_irpt_inv2 interrupt n_interrupt inverter
+
+    // compute PCSEL (taking interrupt, JMP, BEQ, and BNE into account)
+    Xnotz_inv Z notZ inverter
+    //X_opJMP_nand2_0 op[4] op[3] nandop43 nand2
+    X_opJMP_nand2_1 op[1] op[0] nandop10 nand2
+    X_opJMP_nor2_0 nandop43 op[5] opbranch nor2 // 1 if opcode[5:3] == 011
+    X_opJMP_nor_1 nandop10 op[2] aioop210 nor2 // 1 if opcode[2:0] == 011
+    X_opJMP_nand2 opbranch aioop210 n_PCtmp[1] nand2
+    Xpcsel_nand2_0 n_PCtmp[1] n_is_ILLOP pcsel[1] nand2
+
+    X_opBR_nand2_0 op[2] op[1] nandop21 nand2
+    X_opBR_nor2_0 op[0] nandop21 n_opBNE nor2
+    X_opBR_nand2_1 n_opBNE notZ n_PCtmp0_BNE nand2
+    X_opBR_nand2_2 op[2] op[0] nandop20 nand2
+    X_opBR_nor2_2 op[1] nandop20 n_opBEQ nor2
+    X_opBR_nand2_3 n_opBEQ Z n_PCtmp0_BEQ nand2
+    X_opBR_nand2_4 n_PCtmp0_BNE n_PCtmp0_BEQ PCtmp0_BR nand2
+    X_pcBR_nand2_5 opbranch PCtmp0_BR n_PCtmp[0] nand2
+    Xpcsel_nand2_1 n_PCtmp[0] n_is_ILLOP pcsel[0] nand2
+
+    Xbtaken_nand3 n_PCtmp[1] n_PCtmp[0] n_EX branch_taken nand3
+
+    .connect EX pcsel[2]
+    Xnex_inv EX n_EX inverter
+
+    //compute EX : is there an exception (including interrupt) besides ILLOP
+    Xex_nor2 interrupt except_IF n_ex_1 nor2
+    Xex_nor3 except_ALU except_MEM except_WB n_ex_2 nor3
+    Xex_nand2 n_ex_1 n_ex_2 EX nand2
+
+    // set PC to 3 = 0b11 if ILLOP
+    //X_pcILLOP_or2 is_ILLOP#2 PCtmp[1:0] PCtmp_1[1:0] or2
+
+    // ROM table to compute if the opcode is an illop (actually computes the opposite, which we need first)
+    XisILLOP_inv n_is_ILLOP is_ILLOP inverter
+    Xctl_RF_ROM vdd 0 0 id_RF[31:26]
+    + n_is_ILLOP
+    + $memory width=1 nlocations=64 contents=(
+                                    + 0b0    // opcode=000000 = ----ILLOP
+                                    + 0b0    // opcode=000001 = ----ILLOP
+                                    + 0b0    // opcode=000010 = ----ILLOP
+                                    + 0b0    // opcode=000011 = ----ILLOP
+                                    + 0b0    // opcode=000100 = ----ILLOP
+                                    + 0b0    // opcode=000101 = ----ILLOP
+                                    + 0b0    // opcode=000110 = ----ILLOP
+                                    + 0b0    // opcode=000111 = ----ILLOP
+                                    + 0b0    // opcode=001000 = ----ILLOP
+                                    + 0b0    // opcode=001001 = ----ILLOP
+                                    + 0b0    // opcode=001010 = ----ILLOP
+                                    + 0b0    // opcode=001011 = ----ILLOP
+                                    + 0b0    // opcode=001100 = ----ILLOP
+                                    + 0b0    // opcode=001101 = ----ILLOP
+                                    + 0b0    // opcode=001110 = ----ILLOP
+                                    + 0b0    // opcode=001111 = ----ILLOP
+                                    + 0b0    // opcode=010000 = ----ILLOP
+                                    + 0b0    // opcode=010001 = ----ILLOP
+                                    + 0b0    // opcode=010010 = ----ILLOP
+                                    + 0b0    // opcode=010011 = ----ILLOP
+                                    + 0b0    // opcode=010100 = ----ILLOP
+                                    + 0b0    // opcode=010101 = ----ILLOP
+                                    + 0b0    // opcode=010110 = ----ILLOP
+                                    + 0b0    // opcode=010111 = ----ILLOP
+                                    + 0b1    // opcode=011000 = LD
+                                    + 0b1    // opcode=011001 = ST
+                                    + 0b0    // opcode=011010 = ----ILLOP
+                                    + 0b1    // opcode=011011 = JMP
+                                    + 0b0    // opcode=011100 = ----ILLOP
+                                    + 0b1    // opcode=011101 = BEQ
+                                    + 0b1    // opcode=011110 = BNE
+                                    + 0b1    // opcode=011111 = LDR
+                                    + 0b1    // opcode=100000 = ADD
+                                    + 0b1    // opcode=100001 = SUB
+                                    + 0b0    // opcode=100010 = ----ILLOP
+                                    + 0b0    // opcode=100011 = ----ILLOP
+                                    + 0b1    // opcode=100100 = CMPEQ
+                                    + 0b1    // opcode=100101 = CMPLT
+                                    + 0b1    // opcode=100110 = CMPLE
+                                    + 0b0    // opcode=100111 = ----ILLOP
+                                    + 0b1    // opcode=101000 = AND
+                                    + 0b1    // opcode=101001 = OR
+                                    + 0b1    // opcode=101010 = XOR
+                                    + 0b0    // opcode=101011 = ----ILLOP
+                                    + 0b1    // opcode=101100 = SHL
+                                    + 0b1    // opcode=101101 = SHR
+                                    + 0b1    // opcode=101110 = SRA
+                                    + 0b0    // opcode=101111 = ----ILLOP
+                                    + 0b1    // opcode=110000 = ADDC
+                                    + 0b1    // opcode=110001 = SUBC
+                                    + 0b0    // opcode=110010 = ----ILLOP
+                                    + 0b0    // opcode=110011 = ----ILLOP
+                                    + 0b1    // opcode=110100 = CMPEQC
+                                    + 0b1    // opcode=110101 = CMPLTC
+                                    + 0b1    // opcode=110110 = CMPLEC
+                                    + 0b0    // opcode=110111 = ----ILLOP
+                                    + 0b1    // opcode=111000 = ANDC
+                                    + 0b1    // opcode=111001 = ORC
+                                    + 0b1    // opcode=111010 = XORC
+                                    + 0b0    // opcode=111011 = ----ILLOP
+                                    + 0b1    // opcode=111100 = SHLC
+                                    + 0b1    // opcode=111101 = SHRC
+                                    + 0b1    // opcode=111110 = SRAC
+                                    + 0b0)    // opcode=111111 = ----ILLOP
+    Xvdd_true vdd constant1
+
+    // raise exception due to ILLOP or interrupt
+    Xexcept_or2 interrupt is_ILLOP except_RF or2
+.ends
+
+* ALU-stage control logic
+.subckt ctl_ALU id_ALU[31:26] alufn[5:0] wdsel[1:0] except_ALU
+    // computes wdsel to know whether this instruction corresponds with storing a BSA or an ALU output
+    // wdsel is finalized, since we have already taken interrupt into account in RF stage
+    Xctl_alu_ROM vdd 0 0 id_ALU[31:26]
+    + alufn[5:0] wdsel[1:0]
+    + $memory width=8 nlocations=64 contents=(
+                                    + 0b00000000    // opcode=000000 = ----ILLOP
+                                    + 0b00000000    // opcode=000001 = ----ILLOP
+                                    + 0b00000000    // opcode=000010 = ----ILLOP
+                                    + 0b00000000    // opcode=000011 = ----ILLOP
+                                    + 0b00000000    // opcode=000100 = ----ILLOP
+                                    + 0b00000000    // opcode=000101 = ----ILLOP
+                                    + 0b00000000    // opcode=000110 = ----ILLOP
+                                    + 0b00000000    // opcode=000111 = ----ILLOP
+                                    + 0b00000000    // opcode=001000 = ----ILLOP
+                                    + 0b00000000    // opcode=001001 = ----ILLOP
+                                    + 0b00000000    // opcode=001010 = ----ILLOP
+                                    + 0b00000000    // opcode=001011 = ----ILLOP
+                                    + 0b00000000    // opcode=001100 = ----ILLOP
+                                    + 0b00000000    // opcode=001101 = ----ILLOP
+                                    + 0b00000000    // opcode=001110 = ----ILLOP
+                                    + 0b00000000    // opcode=001111 = ----ILLOP
+                                    + 0b00000000    // opcode=010000 = ----ILLOP
+                                    + 0b00000000    // opcode=010001 = ----ILLOP
+                                    + 0b00000000    // opcode=010010 = ----ILLOP
+                                    + 0b00000000    // opcode=010011 = ----ILLOP
+                                    + 0b00000000    // opcode=010100 = ----ILLOP
+                                    + 0b00000000    // opcode=010101 = ----ILLOP
+                                    + 0b00000000    // opcode=010110 = ----ILLOP
+                                    + 0b00000000    // opcode=010111 = ----ILLOP
+                                    + 0b00000010    // opcode=011000 = LD
+                                    + 0b00000000    // opcode=011001 = ST
+                                    + 0b00000000    // opcode=011010 = ----ILLOP
+                                    + 0b00000000    // opcode=011011 = JMP
+                                    + 0b00000000    // opcode=011100 = ----ILLOP
+                                    + 0b00000000    // opcode=011101 = BEQ
+                                    + 0b00000000    // opcode=011110 = BNE
+                                    + 0b01101010    // opcode=011111 = LDR
+                                    + 0b00000001    // opcode=100000 = ADD
+                                    + 0b00000101    // opcode=100001 = SUB
+                                    + 0b00000000    // opcode=100010 = ----ILLOP
+                                    + 0b00000000    // opcode=100011 = ----ILLOP
+                                    + 0b11001101    // opcode=100100 = CMPEQ
+                                    + 0b11010101    // opcode=100101 = CMPLT
+                                    + 0b11011101    // opcode=100110 = CMPLE
+                                    + 0b00000000    // opcode=100111 = ----ILLOP
+                                    + 0b01100001    // opcode=101000 = AND
+                                    + 0b01111001    // opcode=101001 = OR
+                                    + 0b01011001    // opcode=101010 = XOR
+                                    + 0b00000000    // opcode=101011 = ----ILLOP
+                                    + 0b10000001    // opcode=101100 = SHL
+                                    + 0b10000101    // opcode=101101 = SHR
+                                    + 0b10001101    // opcode=101110 = SRA
+                                    + 0b00000000    // opcode=101111 = ----ILLOP
+                                    + 0b00000001    // opcode=110000 = ADDC
+                                    + 0b00000101    // opcode=110001 = SUBC
+                                    + 0b00000000    // opcode=110010 = ----ILLOP
+                                    + 0b00000000    // opcode=110011 = ----ILLOP
+                                    + 0b11001101    // opcode=110100 = CMPEQC
+                                    + 0b11010101    // opcode=110101 = CMPLTC
+                                    + 0b11011101    // opcode=110110 = CMPLEC
+                                    + 0b00000000    // opcode=110111 = ----ILLOP
+                                    + 0b01100001    // opcode=111000 = ANDC
+                                    + 0b01111001    // opcode=111001 = ORC
+                                    + 0b01011001    // opcode=111010 = XORC
+                                    + 0b00000000    // opcode=111011 = ----ILLOP
+                                    + 0b10000001    // opcode=111100 = SHLC
+                                    + 0b10000101    // opcode=111101 = SHRC
+                                    + 0b10001101    // opcode=111110 = SRAC
+                                    + 0b00000000)    // opcode=111111 = ----ILLOP
+    Xtrue vdd constant1
+
+    Xzero except_ALU constant0 // no exceptions for this stage currently supported
+.ends
+
+
+* MEM-stage control logic
+    .subckt ctl_MEM reset id_MEM[31:26] ia_MEM[31] moe wr except_MEM
+
+    Xctl_MEM_knex id_MEM[31:26] op[5:0] knex // convenient renaming
+    X_opSTR_and3 op[4] op[3] op[0] andop430 and3
+    X_opSTR_nor3 op[5] op[2] op[1] norop521 nor3
+    X_opSTR_nand2 andop430 norop521 opSTR nand2
+    X_mr_nor2 reset opSTR wr nor2
+    .connect opSTR moe
+
+    // todo: raise exception if invalid memory address
+    Xzero except_MEM constant0 // no exceptions for this stage currently supported
+.ends
+
+
+* WB-stage control logic
+.subckt ctl_WB reset id_WB[31:26] ia_WB[31] werf except_WB
+    Xctl_WB_knex id_WB[31:26] op[5:0] knex // convenient renaming
+
+    // compute WERF (based on match with store instruction)
+    X_opSTR_and3 op[4] op[3] op[0] andop430 and3
+    X_opSTR_nor3 op[5] op[2] op[1] norop521 nor3
+    X_opSTR_nand2 andop430 norop521 opSTR nand2
+    X_mr_nor2 reset opSTR wr nor2
+    X_notopSTR opSTR n_opSTR inverter
+    X_werf_nor2 reset n_opSTR werf nor2
+
+    Xzero except_WB constant0 // no exceptions for this stage currently supported
+.ends

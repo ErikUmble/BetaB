@@ -1,0 +1,102 @@
+* stall-enabled dreg
+* * A data register that updates d -> q at rising edge of clock, but q -> q if stall is asserted
+.subckt stalldreg d clk stall q
+Xstalldreg_mux2 stall d q store_val mux2
+Xstalldreg_dreg store_val clk q dreg
+.ends
+
+* match5
+** outputs a 1 if both inputs match in each of their 5 places
+.subckt match5 a[4:0] b[4:0] out
+Xmatch5_xnor2 a[4:0] b[4:0] ones[4:0] xnor2
+Xmatch_allones5 ones[4:0] out allones5
+.ends
+
+* allones5
+** outputs 1 if all 5 inputs are 1 (such as for r31 address)
+.subckt allones5 ones[4:0] out
+Xr31check_nand2 ones[4:3] zeros[1] nand2
+Xr31check_nand3 ones[2:0] zeros[0] nand3
+Xr31check_nor2 zeros[1:0] out nor2
+.ends
+
+// id_select32 essentially performs
+//Xid_select_mux4 b_IRSrc[0]#32 b_IRSrc[1]#32 id[31:0] NOP[31:0] BNE[31:0] BNE[31:0] out[31:0] mux4 // BNE overrides NOP during exception
+// but does so in a size-optimized way, avoiding the expensive muxes
+.subckt id_select32 IRSrc[1:0] id[31:0] out[31:0]
+    XnIRSrc_inv b_IRSrc[1:0] b_n_IRSrc[1:0] inverter
+    XnorIRS IRSrc[1:0] norIRS nor2
+    Xbuff_norIRS norIRS b_norIRS buffer_2
+    Xbuffer IRSrc[1:0] b_IRSrc[1:0] buffer
+    X00_0_and2 b_norIRS id[0] out[0] and2
+    X00_1_and2 b_norIRS id[1] out[1] and2
+    X00_2_and2 b_norIRS id[2] out[2] and2
+    X00_3_and2 b_norIRS id[3] out[3] and2
+    X00_4_and2 b_norIRS id[4] out[4] and2
+    X00_5_and2 b_norIRS id[5] out[5] and2
+    X00_6_and2 b_norIRS id[6] out[6] and2
+    X00_7_and2 b_norIRS id[7] out[7] and2
+    X00_8_and2 b_norIRS id[8] out[8] and2
+    X00_9_and2 b_norIRS id[9] out[9] and2
+    X00_10_and2 b_norIRS id[10] out[10] and2
+    X10_11_nor2_0 id[11] b_IRSrc[0] nor_IRS_id11 nor2
+    X10_11_nor2_1 nor_IRS_id11 b_IRSrc[1] out[11] nor2
+    X10_12_nor2_0 id[12] b_IRSrc[0] nor_IRS_id12 nor2
+    X10_12_nor2_1 nor_IRS_id12 b_IRSrc[1] out[12] nor2
+    X10_13_nor2_0 id[13] b_IRSrc[0] nor_IRS_id13 nor2
+    X10_13_nor2_1 nor_IRS_id13 b_IRSrc[1] out[13] nor2
+    X10_14_nor2_0 id[14] b_IRSrc[0] nor_IRS_id14 nor2
+    X10_14_nor2_1 nor_IRS_id14 b_IRSrc[1] out[14] nor2
+    X10_15_nor2_0 id[15] b_IRSrc[0] nor_IRS_id15 nor2
+    X10_15_nor2_1 nor_IRS_id15 b_IRSrc[1] out[15] nor2
+    X11_16_inv id[16] n_id[16] inverter
+    X11_16_nand2 n_id[16] b_norIRS out[16] nand2
+    X11_17_inv id[17] n_id[17] inverter
+    X11_17_nand2 n_id[17] b_norIRS out[17] nand2
+    X11_18_inv id[18] n_id[18] inverter
+    X11_18_nand2 n_id[18] b_norIRS out[18] nand2
+    X11_19_inv id[19] n_id[19] inverter
+    X11_19_nand2 n_id[19] b_norIRS out[19] nand2
+    X11_20_inv id[20] n_id[20] inverter
+    X11_20_nand2 n_id[20] b_norIRS out[20] nand2
+    X10_21_nor2_0 id[21] b_IRSrc[0] nor_IRS_id21 nor2
+    X10_21_nor2_1 nor_IRS_id21 b_IRSrc[1] out[21] nor2
+    X11_22_inv id[22] n_id[22] inverter
+    X11_22_nand2 n_id[22] b_norIRS out[22] nand2
+    X11_23_inv id[23] n_id[23] inverter
+    X11_23_nand2 n_id[23] b_norIRS out[23] nand2
+    X11_24_inv id[24] n_id[24] inverter
+    X11_24_nand2 n_id[24] b_norIRS out[24] nand2
+    X11_25_inv id[25] n_id[25] inverter
+    X11_25_nand2 n_id[25] b_norIRS out[25] nand2
+    X00_26_and2 b_norIRS id[26] out[26] and2
+    X01_27_nand2_0 id[27] b_n_IRSrc[0] tmp27 nand2
+    X01_27_nand2_1 tmp27 b_n_IRSrc[1] out[27] nand2
+    X01_28_nand2_0 id[28] b_n_IRSrc[0] tmp28 nand2
+    X01_28_nand2_1 tmp28 b_n_IRSrc[1] out[28] nand2
+    X01_29_nand2_0 id[29] b_n_IRSrc[0] tmp29 nand2
+    X01_29_nand2_1 tmp29 b_n_IRSrc[1] out[29] nand2
+    X01_30_nand2_0 id[30] b_n_IRSrc[0] tmp30 nand2
+    X01_30_nand2_1 tmp30 b_n_IRSrc[1] out[30] nand2
+    X10_31_nor2_0 id[31] b_IRSrc[0] nor_IRS_id31 nor2
+    X10_31_nor2_1 nor_IRS_id31 b_IRSrc[1] out[31] nor2
+.ends
+
+.subckt knex a b
+.connect a b
+.ends
+
+.subckt zero32 S[31:0] z // z is true if all S is 0
+// compute z using S (diagrammed in write-up)
+Xz_nor2_1 S[0:15] S[16:31] Z_NOR2_1[0:15] nor2
+Xz_nand4 Z_NOR2_1[0:3] Z_NOR2_1[4:7] Z_NOR2_1[8:11] Z_NOR2_1[12:15] Z_NAND4[0:3] nand4
+Xz_nor2_2 Z_NAND4[0:1] Z_NAND4[2:3] Z_NOR2_2[0:1] nor2
+Xz_nand2 Z_NOR2_2[0] Z_NOR2_2[1] not_z nand2
+Xz_inv not_z z inverter
+.ends
+
+.subckt ha a ci b co // a + ci = b
+    Xha_xor2 a ci b xor2
+    Xha_and2 a ci co and2
+.ends
+

@@ -1,0 +1,73 @@
+
+// Computes the negate group propagate and generate values from positive inputs
+.subckt GPC_pn gh ph gl pl ci n_ghl n_phl n_ch n_cl
+Xgpc_pn_aoi_0 ph gl gh n_ghl aoi21
+Xgpc_pn_aoi_1 pl ci gl n_ch aoi21
+Xgpc_pn_nand2 pl ph n_phl nand2
+Xgpc_pn_inv ci n_cl inverter
+.ends
+
+
+// Computes the positive group propagate and generate values from negative inputs
+.subckt GPC_np n_gh n_ph n_gl n_pl n_ci ghl phl ch cl
+Xgpc_np_oai_0 n_ph n_gl n_gh ghl oai21
+Xgpc_np_oai_1 n_pl n_ci n_gl ch oai21
+Xgpc_np_nor2 n_pl n_ph phl nor2
+Xgpc_np_inv n_ci cl inverter
+.ends
+
+
+// Computes the positive group propagate and generate values from negative inputs (except that ci is positive input). For highest tier that recieves Cin directly
+.subckt GPC_np_ n_gh n_ph n_gl n_pl ci ghl phl ch cl
+Xgpc_np_oai_0 n_ph n_gl n_gh ghl oai21
+Xgpc_np_oai_1 n_pl n_ci n_gl ch oai21
+Xgpc_np_nor2 n_pl n_ph phl nor2
+Xgpc_np_inv ci n_ci inverter
+.connect ci cl
+.ends
+
+
+.subckt FA_CLA_inv a b ci n_g n_p s
+Xfa_xor2_0 a b axorb xor2
+Xfa_xor2_1 axorb ci s xor2
+Xfa_nor2 a b n_p nor2
+Xfa_nand_1 a b n_g nand2
+.ends
+
+.subckt CLA32 A[31:0] B[31:0] ci S[31:0] co
+Xcla_fa A[31:0] B[31:0] C_0_[31:0] G_1_[31:0] P_1_[31:0] S[31:0] fa_cla_inv
+Xcla_gpc_1_31 G_1_[31] P_1_[31] G_1_[30] P_1_[30] C_1_[31] G_2_[31] P_2_[31] C_0_[31] C_0_[30] gpc_np
+Xcla_gpc_1_29 G_1_[29] P_1_[29] G_1_[28] P_1_[28] C_1_[29] G_2_[29] P_2_[29] C_0_[29] C_0_[28] gpc_np
+Xcla_gpc_1_27 G_1_[27] P_1_[27] G_1_[26] P_1_[26] C_1_[27] G_2_[27] P_2_[27] C_0_[27] C_0_[26] gpc_np
+Xcla_gpc_1_25 G_1_[25] P_1_[25] G_1_[24] P_1_[24] C_1_[25] G_2_[25] P_2_[25] C_0_[25] C_0_[24] gpc_np
+Xcla_gpc_1_23 G_1_[23] P_1_[23] G_1_[22] P_1_[22] C_1_[23] G_2_[23] P_2_[23] C_0_[23] C_0_[22] gpc_np
+Xcla_gpc_1_21 G_1_[21] P_1_[21] G_1_[20] P_1_[20] C_1_[21] G_2_[21] P_2_[21] C_0_[21] C_0_[20] gpc_np
+Xcla_gpc_1_19 G_1_[19] P_1_[19] G_1_[18] P_1_[18] C_1_[19] G_2_[19] P_2_[19] C_0_[19] C_0_[18] gpc_np
+Xcla_gpc_1_17 G_1_[17] P_1_[17] G_1_[16] P_1_[16] C_1_[17] G_2_[17] P_2_[17] C_0_[17] C_0_[16] gpc_np
+Xcla_gpc_1_15 G_1_[15] P_1_[15] G_1_[14] P_1_[14] C_1_[15] G_2_[15] P_2_[15] C_0_[15] C_0_[14] gpc_np
+Xcla_gpc_1_13 G_1_[13] P_1_[13] G_1_[12] P_1_[12] C_1_[13] G_2_[13] P_2_[13] C_0_[13] C_0_[12] gpc_np
+Xcla_gpc_1_11 G_1_[11] P_1_[11] G_1_[10] P_1_[10] C_1_[11] G_2_[11] P_2_[11] C_0_[11] C_0_[10] gpc_np
+Xcla_gpc_1_9 G_1_[9] P_1_[9] G_1_[8] P_1_[8] C_1_[9] G_2_[9] P_2_[9] C_0_[9] C_0_[8] gpc_np
+Xcla_gpc_1_7 G_1_[7] P_1_[7] G_1_[6] P_1_[6] C_1_[7] G_2_[7] P_2_[7] C_0_[7] C_0_[6] gpc_np
+Xcla_gpc_1_5 G_1_[5] P_1_[5] G_1_[4] P_1_[4] C_1_[5] G_2_[5] P_2_[5] C_0_[5] C_0_[4] gpc_np
+Xcla_gpc_1_3 G_1_[3] P_1_[3] G_1_[2] P_1_[2] C_1_[3] G_2_[3] P_2_[3] C_0_[3] C_0_[2] gpc_np
+Xcla_gpc_1_1 G_1_[1] P_1_[1] G_1_[0] P_1_[0] C_1_[1] G_2_[1] P_2_[1] C_0_[1] C_0_[0] gpc_np
+Xcla_gpc_2_31 G_2_[31] P_2_[31] G_2_[29] P_2_[29] C_2_[31] G_3_[31] P_3_[31] C_1_[31] C_1_[29] gpc_pn
+Xcla_gpc_2_27 G_2_[27] P_2_[27] G_2_[25] P_2_[25] C_2_[27] G_3_[27] P_3_[27] C_1_[27] C_1_[25] gpc_pn
+Xcla_gpc_2_23 G_2_[23] P_2_[23] G_2_[21] P_2_[21] C_2_[23] G_3_[23] P_3_[23] C_1_[23] C_1_[21] gpc_pn
+Xcla_gpc_2_19 G_2_[19] P_2_[19] G_2_[17] P_2_[17] C_2_[19] G_3_[19] P_3_[19] C_1_[19] C_1_[17] gpc_pn
+Xcla_gpc_2_15 G_2_[15] P_2_[15] G_2_[13] P_2_[13] C_2_[15] G_3_[15] P_3_[15] C_1_[15] C_1_[13] gpc_pn
+Xcla_gpc_2_11 G_2_[11] P_2_[11] G_2_[9] P_2_[9] C_2_[11] G_3_[11] P_3_[11] C_1_[11] C_1_[9] gpc_pn
+Xcla_gpc_2_7 G_2_[7] P_2_[7] G_2_[5] P_2_[5] C_2_[7] G_3_[7] P_3_[7] C_1_[7] C_1_[5] gpc_pn
+Xcla_gpc_2_3 G_2_[3] P_2_[3] G_2_[1] P_2_[1] C_2_[3] G_3_[3] P_3_[3] C_1_[3] C_1_[1] gpc_pn
+Xcla_gpc_3_31 G_3_[31] P_3_[31] G_3_[27] P_3_[27] C_3_[31] G_4_[31] P_4_[31] C_2_[31] C_2_[27] gpc_np
+Xcla_gpc_3_23 G_3_[23] P_3_[23] G_3_[19] P_3_[19] C_3_[23] G_4_[23] P_4_[23] C_2_[23] C_2_[19] gpc_np
+Xcla_gpc_3_15 G_3_[15] P_3_[15] G_3_[11] P_3_[11] C_3_[15] G_4_[15] P_4_[15] C_2_[15] C_2_[11] gpc_np
+Xcla_gpc_3_7 G_3_[7] P_3_[7] G_3_[3] P_3_[3] C_3_[7] G_4_[7] P_4_[7] C_2_[7] C_2_[3] gpc_np
+Xcla_gpc_4_31 G_4_[31] P_4_[31] G_4_[23] P_4_[23] C_4_[31] G_5_[31] P_5_[31] C_3_[31] C_3_[23] gpc_pn
+Xcla_gpc_4_15 G_4_[15] P_4_[15] G_4_[7] P_4_[7] C_4_[15] G_5_[15] P_5_[15] C_3_[15] C_3_[7] gpc_pn
+Xcla_gpc_5_31 G_5_[31] P_5_[31] G_5_[15] P_5_[15] ci G_6_[31] P_6_[31] C_4_[31] C_4_[15] gpc_np_
+
+// ignore overflow
+Xignore_overflow co constant0
+.ends

@@ -1,0 +1,111 @@
+
+// Note: The force blocks, F1 and F2 might make more sense after seeing the writeup
+
+
+// let BOA be branch offset address = <PC> + 4 + 4*(sign-extended-constant) // computed in RF stage
+// let BSA be the branch save address = <PC> + 4
+.subckt pc clk reset stall n_stall ia[31:0] pcsel[2:0] is_ILLOP n_is_ILLOP JT[31:0]  BSA[31:0] BOA[31:0]
+    // prepare PC + 4 in BSA nodes (leaving supervisor bit unchanged)
+    Xpc_true C[2] constant1
+    Xpc_ha ia[30:2] C[30:2] BSA[30:2] C[31:3] ha //only add the middle [30:2] bits
+    Xpc_gnd BSA[1:0] constant0 // set the low order 2 bits to 0
+    .connect BSA[31] ia[31] // supervisor bit
+
+    Xrename ia[31:0] stall_val[31:0] knex
+
+    // compute the most likely of the exception store values
+    XF1 reset stall n_stall stall_val[31:0] n_tmp[31:0] F1
+    XF2 is_ILLOP n_is_ILLOP n_tmp[31:0] extmp[31:0] F2
+
+    Xinv pcsel[1:0] n_pcsel[1:0] inverter
+    Xnor3 pcsel[2] stall reset nor3out nor3
+    Xnand2_0 n_pcsel[0] nor3out finalsel[0] nand2
+    Xnand2_1 n_pcsel[1] nor3out finalsel[1] nand2
+    Xbuff finalsel[1:0] b_finalsel[1:0] buffer_8
+
+    Xpc_mux4 b_finalsel[0]#32 b_finalsel[1]#32 BSA[31:0] ia[31] BOA[30:0] JT_supervisor JT[30:0] extmp[31:0] loading_value[31:0] mux4
+
+    // set JT_supervisor which is JT[31] and previous ia[31]
+    Xpc_and2_2 JT[31] ia[31] JT_supervisor and2
+
+    // load the value into the dreg at the rising clock edge unless we must stall
+    Xpc_dreg loading_value[31:0] clk#32 ia[31:0] dreg
+.ends
+.subckt F1 restart stall n_stall stall_val[31:0] n_tmp[31:0]
+    Xnstall_val stall_val[31:0] n_stall_val[31:0] inverter
+    Xinv restart b_n_restart inverter_2
+    Xnor2 n_stall restart norSR nor2
+    Xbuff_0 norSR b_norSR buffer_2
+    Xbuff_1 n_stall b_n_stall buffer
+    Xbuff_2 stall b_stall buffer
+    Xbuff_3 restart b_restart buffer
+    X11_0_nand2 stall_val[0] b_norSR n_tmp[0] nand2
+    X11_1_nand2 stall_val[1] b_norSR n_tmp[1] nand2
+    X11_2_nand2 stall_val[2] b_norSR n_tmp[2] nand2
+    X01_3_nand2_0 n_stall_val[3] b_stall _tmp3 nand2
+    X01_3_nand2_1 _tmp3 b_n_restart n_tmp[3] nand2
+    X11_4_nand2 stall_val[4] b_norSR n_tmp[4] nand2
+    X11_5_nand2 stall_val[5] b_norSR n_tmp[5] nand2
+    X11_6_nand2 stall_val[6] b_norSR n_tmp[6] nand2
+    X11_7_nand2 stall_val[7] b_norSR n_tmp[7] nand2
+    X11_8_nand2 stall_val[8] b_norSR n_tmp[8] nand2
+    X11_9_nand2 stall_val[9] b_norSR n_tmp[9] nand2
+    X11_10_nand2 stall_val[10] b_norSR n_tmp[10] nand2
+    X11_11_nand2 stall_val[11] b_norSR n_tmp[11] nand2
+    X11_12_nand2 stall_val[12] b_norSR n_tmp[12] nand2
+    X11_13_nand2 stall_val[13] b_norSR n_tmp[13] nand2
+    X11_14_nand2 stall_val[14] b_norSR n_tmp[14] nand2
+    X11_15_nand2 stall_val[15] b_norSR n_tmp[15] nand2
+    X11_16_nand2 stall_val[16] b_norSR n_tmp[16] nand2
+    X11_17_nand2 stall_val[17] b_norSR n_tmp[17] nand2
+    X11_18_nand2 stall_val[18] b_norSR n_tmp[18] nand2
+    X11_19_nand2 stall_val[19] b_norSR n_tmp[19] nand2
+    X11_20_nand2 stall_val[20] b_norSR n_tmp[20] nand2
+    X11_21_nand2 stall_val[21] b_norSR n_tmp[21] nand2
+    X11_22_nand2 stall_val[22] b_norSR n_tmp[22] nand2
+    X11_23_nand2 stall_val[23] b_norSR n_tmp[23] nand2
+    X11_24_nand2 stall_val[24] b_norSR n_tmp[24] nand2
+    X11_25_nand2 stall_val[25] b_norSR n_tmp[25] nand2
+    X11_26_nand2 stall_val[26] b_norSR n_tmp[26] nand2
+    X11_27_nand2 stall_val[27] b_norSR n_tmp[27] nand2
+    X11_28_nand2 stall_val[28] b_norSR n_tmp[28] nand2
+    X11_29_nand2 stall_val[29] b_norSR n_tmp[29] nand2
+    X11_30_nand2 stall_val[30] b_norSR n_tmp[30] nand2
+    X00_31_and2 b_norSR n_stall_val[31] n_tmp[31] and2
+.ends
+
+.subckt F2 is_ILLOP n_is_ILLOP n_tmp[31:0] extmp[31:0]
+    Xbuff_0 is_ILLOP b_is_ILLOP buffer_4
+    X0_0_nor2 n_tmp[0] b_is_ILLOP extmp[0] nor2
+    X0_1_nor2 n_tmp[1] b_is_ILLOP extmp[1] nor2
+    X1_2_nand2 n_tmp[2] n_is_ILLOP extmp[2] nand2
+    X0_3_nor2 n_tmp[3] b_is_ILLOP extmp[3] nor2
+    X0_4_nor2 n_tmp[4] b_is_ILLOP extmp[4] nor2
+    X0_5_nor2 n_tmp[5] b_is_ILLOP extmp[5] nor2
+    X0_6_nor2 n_tmp[6] b_is_ILLOP extmp[6] nor2
+    X0_7_nor2 n_tmp[7] b_is_ILLOP extmp[7] nor2
+    X0_8_nor2 n_tmp[8] b_is_ILLOP extmp[8] nor2
+    X0_9_nor2 n_tmp[9] b_is_ILLOP extmp[9] nor2
+    X0_10_nor2 n_tmp[10] b_is_ILLOP extmp[10] nor2
+    X0_11_nor2 n_tmp[11] b_is_ILLOP extmp[11] nor2
+    X0_12_nor2 n_tmp[12] b_is_ILLOP extmp[12] nor2
+    X0_13_nor2 n_tmp[13] b_is_ILLOP extmp[13] nor2
+    X0_14_nor2 n_tmp[14] b_is_ILLOP extmp[14] nor2
+    X0_15_nor2 n_tmp[15] b_is_ILLOP extmp[15] nor2
+    X0_16_nor2 n_tmp[16] b_is_ILLOP extmp[16] nor2
+    X0_17_nor2 n_tmp[17] b_is_ILLOP extmp[17] nor2
+    X0_18_nor2 n_tmp[18] b_is_ILLOP extmp[18] nor2
+    X0_19_nor2 n_tmp[19] b_is_ILLOP extmp[19] nor2
+    X0_20_nor2 n_tmp[20] b_is_ILLOP extmp[20] nor2
+    X0_21_nor2 n_tmp[21] b_is_ILLOP extmp[21] nor2
+    X0_22_nor2 n_tmp[22] b_is_ILLOP extmp[22] nor2
+    X0_23_nor2 n_tmp[23] b_is_ILLOP extmp[23] nor2
+    X0_24_nor2 n_tmp[24] b_is_ILLOP extmp[24] nor2
+    X0_25_nor2 n_tmp[25] b_is_ILLOP extmp[25] nor2
+    X0_26_nor2 n_tmp[26] b_is_ILLOP extmp[26] nor2
+    X0_27_nor2 n_tmp[27] b_is_ILLOP extmp[27] nor2
+    X0_28_nor2 n_tmp[28] b_is_ILLOP extmp[28] nor2
+    X0_29_nor2 n_tmp[29] b_is_ILLOP extmp[29] nor2
+    X0_30_nor2 n_tmp[30] b_is_ILLOP extmp[30] nor2
+    X1_31_nand2 n_tmp[31] n_is_ILLOP extmp[31] nand2
+.ends
